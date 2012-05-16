@@ -7,40 +7,87 @@
 
 #define FNMODE_FILE "/sys/module/hid_apple/parameters/fnmode"
 
-int
-main() {
+void
+display_current_setting(void) {
         FILE *f;
         int fnmode;
-        int ret;
 
-        if (0 != setuid(0)) {
-                fprintf(stderr, "Error changing user id: %s\n",
-                        strerror(errno));
-                return 1;
-        }
-
-        f = fopen(FNMODE_FILE, "r+");
+        f = fopen(FNMODE_FILE, "r");
         if (NULL == f) {
                 fprintf(stderr, "Error opening fnmode file.\n");
-                return 1;
+                exit(EXIT_FAILURE);
         }
 
         if (0 >= fscanf(f, "%d", &fnmode)) {
                 fprintf(stderr, "Failed to read fnmode value.\n");
-                return 1;
-        }
-
-        rewind(f);
-
-        if (0 >= fprintf(f, "%d", fnmode == 2 ? 1 : 2)) {
-                fprintf(stderr, "Failed to write fnmode value.\n");
-                return 1;
+                exit(EXIT_FAILURE);
         }
 
         if (0 != fclose(f)) {
                 fprintf(stderr, "Error closing fnmode file: %s\n",
                         strerror(errno));
-                return 1;
+                exit(EXIT_FAILURE);
+        }
+
+        fprintf(stdout, "%d\n", fnmode);
+}
+
+void
+set_value_to(const char value) {
+        FILE *f;
+
+        if (0 != setuid(0)) {
+                fprintf(stderr, "Error changing user id: %s\n",
+                        strerror(errno));
+                exit(EXIT_FAILURE);
+        }
+
+        f = fopen(FNMODE_FILE, "r+");
+        if (NULL == f) {
+                fprintf(stderr, "Error opening fnmode file.\n");
+                exit(EXIT_FAILURE);
+        }
+
+        if (0 >= fprintf(f, "%c", value)) {
+                fprintf(stderr, "Failed to write fnmode value.\n");
+                exit(EXIT_FAILURE);
+        }
+
+        if (0 != fclose(f)) {
+                fprintf(stderr, "Error closing fnmode file: %s\n",
+                        strerror(errno));
+                exit(EXIT_FAILURE);
+        }
+}
+
+void
+usage(const char *bin) {
+        fprintf(stderr, "Usage: %s [0|1|2]\n", bin);
+}
+
+int
+main(int argc, char *argv[]) {
+        int opt;
+
+        while ((opt = getopt(argc, argv, "")) != -1) {
+                fprintf(stderr, "Usage: %s [0|1|2]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
+
+        if (optind >= argc) {
+                display_current_setting();
+        } else {
+                switch (argv[optind][0]) {
+                case '0':
+                case '1':
+                case '2':
+                        set_value_to(argv[optind][0]);
+                        display_current_setting();
+                        break;
+                default:
+                        fprintf(stderr, "Usage: %s [0|1|2]\n", argv[0]);
+                        exit(EXIT_FAILURE);
+                }
         }
 
         return 0;
